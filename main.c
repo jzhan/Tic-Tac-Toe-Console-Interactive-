@@ -40,7 +40,7 @@ int main() {
         if(BORDER[i] == '#') BORDER[i] = 178;
 
     printf(BORDER);
-    printf("User your mouse to play\n");
+    printf("Use your mouse to play\n");
     printf("Press X to EXIT\n");
 
     for(int i = 0; i < 3; ++i) {
