@@ -5,31 +5,31 @@
 #define PERR(bSuccess, api) { if(!(bSuccess)) printf("%s:Error %d from %s on line %d\n", __FILE__, GetLastError(), api, __LINE__); }
 
 void cls();
-void gotoxy(short x, short y);
+void gotoxy(HANDLE hOut, short x, short y);
+int validate(HANDLE hOut, int result);
 int check_board();
-void MouseEventProc(MOUSE_EVENT_RECORD mer);
+void move(HANDLE hOut, int x, int y, int i, int j);
+void MouseEventProc(HANDLE hOut, MOUSE_EVENT_RECORD mer);
 
 int turn, count;
 char board[3][3];
 
 int main() {
-    cls();
-
     char BORDER[] = "\
 #############################\n\
-##       ##       ##       ##\n\
-##       ##       ##       ##\n\
-##       ##       ##       ##\n\
-##       ##       ##       ##\n\
-##       ##       ##       ##\n\
-#############################\n\
-##       ##       ##       ##\n\
+##1      ##2      ##3      ##\n\
 ##       ##       ##       ##\n\
 ##       ##       ##       ##\n\
 ##       ##       ##       ##\n\
 ##       ##       ##       ##\n\
 #############################\n\
+##4      ##5      ##6      ##\n\
 ##       ##       ##       ##\n\
+##       ##       ##       ##\n\
+##       ##       ##       ##\n\
+##       ##       ##       ##\n\
+#############################\n\
+##7      ##8      ##9      ##\n\
 ##       ##       ##       ##\n\
 ##       ##       ##       ##\n\
 ##       ##       ##       ##\n\
@@ -38,60 +38,82 @@ int main() {
 
     for(int i = 0, n = strlen(BORDER); i < n; ++i)
         if(BORDER[i] == '#') BORDER[i] = 178;
-
-    printf(BORDER);
-    printf("Use your mouse to play\n");
-    printf("Press X to EXIT\n");
-
-    for(int i = 0; i < 3; ++i) {
-        for(int j = 0; j < 3; ++j) {
+    
+    for(int i = 0; i < 3; ++i)
+        for(int j = 0; j < 3; ++j)
             board[i][j] = '-';
-        }
-    }
 
+    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE),
+           hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     INPUT_RECORD InRec;
     DWORD NumRead;
-    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
     turn = 'X';
+
+    cls(hOut);
+    printf(BORDER);
+    printf("Use your mouse or number keys to play\n");
+    printf("Press X to EXIT\n");
 
     while(1) {
         ReadConsoleInput(hIn, &InRec, 1, &NumRead);
 
         if(InRec.EventType == MOUSE_EVENT) {
-            MouseEventProc(InRec.Event.MouseEvent);
+            MouseEventProc(hOut, InRec.Event.MouseEvent);
 
-            int result = check_board();
-
-            if(result) {
-                gotoxy(30, 9);
-
-                if(result == 1)
-                    printf("X win\n");
-                else if(result == 2)
-                    printf("O win\n");
-
-                SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 7);
-
-                if(result == 3)
-                    printf("Draw");
-
-                gotoxy(0, 20);
-
+            if(validate(hOut, check_board())) 
                 return 0;
-            }
         } else if (InRec.EventType == KEY_EVENT) {
-            if(InRec.Event.KeyEvent.uChar.AsciiChar == 'x') {
-                cls();
-                SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 7);
+            switch(InRec.Event.KeyEvent.uChar.AsciiChar) {
+                case '1':
+                    move(hOut, 4, 2, 0, 0);
 
-                return 0;
+                    break;
+                case '2':
+                    move(hOut, 13, 2, 0, 1);
+
+                    break;
+                case '3':
+                    move(hOut, 22, 2, 0, 2);
+
+                    break;
+                case '4':
+                    move(hOut, 4, 8, 1, 0);
+
+                    break;
+                case '5':
+                    move(hOut, 13, 8, 1, 1);
+
+                    break;
+                case '6':
+                    move(hOut, 22, 8, 1, 2);
+
+                    break;
+                case '7':
+                    move(hOut, 4, 14, 2, 0);
+
+                    break;
+                case '8':
+                    move(hOut, 13, 14, 2, 1);
+
+                    break;
+                case '9':
+                    move(hOut, 22, 14, 2, 2);
+
+                    break;
+                case 'x':
+                    cls(hOut);
+                    SetConsoleTextAttribute(hOut, 7);
+
+                    return 0;
             }
+
+            if(validate(hOut, check_board())) 
+                return 0;
         }
     }
 }
 
-void cls() {
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+void cls(HANDLE hOut) {
     COORD coordScreen = {0, 0};    /* here's where we'll home the
                                         cursor */ 
     BOOL bSuccess;
@@ -102,43 +124,69 @@ void cls() {
  
     /* get the number of character cells in the current buffer */ 
  
-    bSuccess = GetConsoleScreenBufferInfo(hConsole, &csbi);
+    bSuccess = GetConsoleScreenBufferInfo(hOut, &csbi);
+
     PERR( bSuccess, "GetConsoleScreenBufferInfo" );
+    
     dwConSize = csbi.dwSize.X * csbi.dwSize.Y;
  
     /* fill the entire screen with blanks */ 
  
-    bSuccess = FillConsoleOutputCharacter(hConsole, (TCHAR) ' ',
-       dwConSize, coordScreen, &cCharsWritten);
-    PERR( bSuccess, "FillConsoleOutputCharacter" );
+    bSuccess = FillConsoleOutputCharacter(hOut, (TCHAR) ' ',
+                dwConSize, coordScreen, &cCharsWritten);
+
+    PERR(bSuccess, "FillConsoleOutputCharacter");
  
     /* get the current text attribute */ 
  
-    bSuccess = GetConsoleScreenBufferInfo(hConsole, &csbi);
-    PERR( bSuccess, "ConsoleScreenBufferInfo" );
+    bSuccess = GetConsoleScreenBufferInfo(hOut, &csbi);
+
+    PERR(bSuccess, "ConsoleScreenBufferInfo");
  
     /* now set the buffer's attributes accordingly */ 
  
-    bSuccess = FillConsoleOutputAttribute(hConsole, csbi.wAttributes,
+    bSuccess = FillConsoleOutputAttribute(hOut, csbi.wAttributes,
                dwConSize, coordScreen, &cCharsWritten);
+
     PERR(bSuccess, "FillConsoleOutputAttribute");
  
     /* put the cursor at (0, 0) */ 
  
-    bSuccess = SetConsoleCursorPosition( hConsole, coordScreen );
+    bSuccess = SetConsoleCursorPosition( hOut, coordScreen );
+
     PERR(bSuccess, "SetConsoleCursorPosition");
  }
 
-void gotoxy(short x, short y) {
+void gotoxy(HANDLE hOut,short x, short y) {
     COORD coord = {x, y};
 
-    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+    SetConsoleCursorPosition(hOut, coord);
+}
+
+int validate(HANDLE hOut, int result) {
+    if(result) {
+        gotoxy(hOut, 30, 9);
+
+        if(result == 1)
+            printf("X win\n");
+        else if(result == 2)
+            printf("O win\n");
+
+        SetConsoleTextAttribute(hOut, 7);
+
+        if(result == 3)
+            printf("Draw");
+
+        gotoxy(hOut, 0, 20);
+
+        return 1;
+    }
+
+    return 0;
 }
 
 int check_board() {
-    int i;
-    
-    for (i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++) {
         /*Check Horizontal*/
         if (board[i][0] == board[i][1] && board[i][1] == board[i][2]) {
             if (board[i][0] == 'X')
@@ -173,122 +221,66 @@ int check_board() {
     else return 0;
 }
 
-void MouseEventProc(MOUSE_EVENT_RECORD mer) {
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+void move(HANDLE hOut, int x, int y, int i, int j) {  
+    if(board[i][j] != '-')
+        return;
 
+    board[i][j] = turn;
+    count = count + 1;
+
+    if(turn == 'X') {
+        SetConsoleTextAttribute(hOut, 0xC);
+
+        for(int i = 0; i < 3; ++i) {
+            gotoxy(hOut, x + 2 - i, y + i);
+            putchar(178);
+
+            gotoxy(hOut, x + i, y + i);
+            putchar(178);
+        }
+    } else {
+        SetConsoleTextAttribute(hOut, 0xA);
+
+        for(int i = 0; i < 3; ++i) {
+            gotoxy(hOut, x, y + i);
+
+            if(i == 1)
+                printf("\xB2 \xB2");
+            else printf("\xB2\xB2\xB2");
+        }
+    }
+
+    if(turn == 'X') turn = 'O';
+    else turn = 'X';
+}
+
+void MouseEventProc(HANDLE hOut, MOUSE_EVENT_RECORD mer) {
     if(mer.dwEventFlags == 0 && mer.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED || 
         mer.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED & MOUSE_MOVED) {
         short x = mer.dwMousePosition.X,
-              y = mer.dwMousePosition.Y,
-              flag = 0,
-              start_x, start_y;
+              y = mer.dwMousePosition.Y;
         
         if(x > 1 && x < 9 && y > 0 && y < 6) {
-            start_x = 4;
-            start_y = 2;
-
-            if(board[0][0] == '-') {
-                board[0][0] = turn;
-                flag = 1;
-            }
+            move(hOut, 4, 2, 0, 0);
         } else if(x > 10 && x < 18 && y > 0 && y < 6) {
-            start_x = 13;
-            start_y = 2;
-
-            if(board[0][1] == '-') {
-                board[0][1] = turn;
-                flag = 1;
-            }
+            move(hOut, 13, 2, 0, 1);
         } else if(x > 19 && x < 27 && y > 0 && y < 6) {
-            start_x = 22;
-            start_y = 2;
-
-            if(board[0][2] == '-') {
-                board[0][2] = turn;
-                flag = 1;
-            }
+           move(hOut, 22, 2, 0, 2);
         } else if(x > 1 && x < 9 && y > 6 && y < 12) {
-            start_x = 4;
-            start_y = 8;
-
-            if(board[1][0] == '-') {
-                board[1][0] = turn;
-                flag = 1;
-            }
+            move(hOut, 4, 8, 1, 0);
         } else if(x > 10 && x < 18 && y > 6 && y < 12) {
-            start_x = 13;
-            start_y = 8;
-
-            if(board[1][1] == '-') {
-                board[1][1] = turn;
-                flag = 1;
-            }
+            move(hOut, 13, 8, 1, 1);
         } else if(x > 19 && x < 27 && y > 6 && y < 12) {
-            start_x = 22;
-            start_y = 8;
-
-            if(board[1][2] == '-') {
-                board[1][2] = turn;
-                flag = 1;
-            }
+            move(hOut, 22, 8, 1, 2);
         } else if(x > 1 && x < 9 && y > 12 && y < 18) {
-            start_x = 4;
-            start_y = 14;
-
-            if(board[2][0] == '-') {
-                board[2][0] = turn;
-                flag = 1;
-            }
+            move(hOut, 4, 14, 2, 0);
         } else if(x > 10 && x < 18 && y > 12 && y < 18) {
-            start_x = 13;
-            start_y = 14;
-
-            if(board[2][1] == '-') {
-                board[2][1] = turn;
-                flag = 1;
-            }
+            move(hOut, 13, 14, 2, 1);
         } else if(x > 19 && x < 27 && y > 12 && y < 18) {
-            start_x = 22;
-            start_y = 14;
-
-            if(board[2][2] == '-') {
-                board[2][2] = turn;
-                flag = 1;
-            }
+            move(hOut, 22, 14, 2, 2);
         } 
-
-        if(flag) {
-            count += 1;
-             if(turn == 'X') {
-                SetConsoleTextAttribute(hOut, 0xC);
-
-                for(int i = 0; i < 3; ++i) {
-                    gotoxy(start_x + 2 - i, start_y + i);
-
-                    putchar(178);
-
-                    gotoxy(start_x + i, start_y + i);
-
-                    putchar(178);
-                }
-            } else {
-                SetConsoleTextAttribute(hOut, 0xA);
-
-                for(int i = 0; i < 3; ++i) {
-                    gotoxy(start_x, start_y + i);
-
-                    if(i == 1)
-                        printf("\xB2 \xB2");
-                    else printf("\xB2\xB2\xB2");
-                }
-            }
-
-            if(turn == 'X') turn = 'O';
-            else turn = 'X';
-        }
-       
     } else if(mer.dwEventFlags == 0 && mer.dwButtonState == RIGHTMOST_BUTTON_PRESSED || 
         mer.dwButtonState == RIGHTMOST_BUTTON_PRESSED & MOUSE_MOVED) {
-        gotoxy(mer.dwMousePosition.X, mer.dwMousePosition.Y);
+        gotoxy(hOut, mer.dwMousePosition.X, mer.dwMousePosition.Y);
     }
 }
