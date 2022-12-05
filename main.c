@@ -176,7 +176,7 @@ int validate(HANDLE hOut, int result) {
         SetConsoleTextAttribute(hOut, 7);
 
         if(result == 3)
-            printf("Draw");
+            toDigital(hOut, "Draw", 32, 7);
 
         gotoxy(hOut, 0, 20);
 
