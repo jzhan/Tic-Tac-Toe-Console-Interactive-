@@ -10,6 +10,7 @@ int validate(HANDLE hOut, int result);
 int check_board();
 void move(HANDLE hOut, int x, int y, int i, int j);
 void MouseEventProc(HANDLE hOut, MOUSE_EVENT_RECORD mer);
+void toDigital(HANDLE hOut, char *str, int x, int y);
 
 int turn, count;
 char board[3][3];
@@ -53,7 +54,7 @@ int main() {
     printf(BORDER);
     printf("Use your mouse or number keys to play\n");
     printf("Press X to EXIT\n");
-
+    
     while(1) {
         ReadConsoleInput(hIn, &InRec, 1, &NumRead);
 
@@ -168,9 +169,9 @@ int validate(HANDLE hOut, int result) {
         gotoxy(hOut, 30, 9);
 
         if(result == 1)
-            printf("X win\n");
+            toDigital(hOut, "X Wins", 32, 7);
         else if(result == 2)
-            printf("O win\n");
+            toDigital(hOut, "O Wins", 32, 7);
 
         SetConsoleTextAttribute(hOut, 7);
 
@@ -282,5 +283,51 @@ void MouseEventProc(HANDLE hOut, MOUSE_EVENT_RECORD mer) {
     } else if(mer.dwEventFlags == 0 && mer.dwButtonState == RIGHTMOST_BUTTON_PRESSED || 
         mer.dwButtonState == RIGHTMOST_BUTTON_PRESSED & MOUSE_MOVED) {
         gotoxy(hOut, mer.dwMousePosition.X, mer.dwMousePosition.Y);
+    }
+}
+
+void toDigital(HANDLE hOut, char *str, int x, int y) {
+    int pattern[26] = {15269425, 32045630, 33047071, 32032318, 33061407, 33062416,
+                       33050175, 18415153, 14815374, 32564782, 18444881, 17318431, 
+                       18732593, 18667121, 15255086, 32045584, 33080925, 32045649, 
+                       33061951, 32641156, 18400831, 18393412, 18405233, 18157905,
+                       18157700, 32575775};
+ 
+    int num_pattern[10] = {33150783, 13504671, 15309599, 31505470, 2304994, 33060926, 15235630,
+                        32586884, 15252014, 15252526};
+ 
+    int l, m;
+    int len = strlen(str);
+
+    for(int j = 4; j >= 0; --j) {
+        gotoxy(hOut, x, y);
+
+        for(int k = 0; k < len; k++) {
+            if(str[k] == ' ') {
+                printf("  ");
+                
+                continue;
+            }
+    
+            if(str[k] >= '0' && str[k] <= '9') {
+                m = (num_pattern[str[k] - '0'] >> (j * 5));
+                l = 4;
+            } else if(str[k] == '\'') {
+                m = (26624 >> (j * 3));
+                l = 2;
+            } else {
+                m = (pattern[tolower(str[k]) - 'a'] >> (j * 5));
+                l = 4;
+            }
+    
+            for(; l >= 0; --l)
+                printf("%c", ((m & (1 << l))? (char) 178:' '));
+    
+            printf(" ");
+        }
+
+        printf("\n");
+
+        y += 1;
     }
 }
